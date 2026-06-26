@@ -1,153 +1,242 @@
+#!/usr/bin/env python3
+"""
+evaluate.py
+───────────
+Evaluation harness for the Beekeeping RAG pipeline.
+
+Metrics
+  1. Keyword Overlap  — Precision, Recall, F1  (lexical alignment)
+  2. Cosine Similarity — semantic alignment via sentence embeddings
+
+Pass criteria  (BOTH must be satisfied)
+  Keyword F1        ≥ 0.30
+  Cosine Similarity ≥ 0.60
+
+Outputs
+  Console report
+  output/evaluation_report.json   ← machine-readable
+  output/evaluation_report.md     ← human-readable / submission-ready
+
+Author : Vinay Yadav
+"""
+
+from __future__ import annotations
+
 import json
 import re
-import os
+from dataclasses import asdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
 import numpy as np
-from typing import List, Dict, Tuple
-from sentence_transformers import SentenceTransformer
-from rag_pipeline import RAGPipeline
+from sklearn.metrics.pairwise import cosine_similarity
 
-def tokenize(text: str) -> set:
-    """Tokenizes text into a set of lowercase alphanumeric words."""
-    return set(re.findall(r'\b\w+\b', text.lower()))
+from rag_pipeline import build_rag, get_qa_pairs
 
-def compute_keyword_metrics(generated: str, expected: str) -> Tuple[float, float, float]:
+# ── Config ──────────────────────────────────────────────────────────────────
+OUTPUT_DIR  = Path(__file__).parent / "output"
+REPORT_JSON = OUTPUT_DIR / "evaluation_report.json"
+REPORT_MD   = OUTPUT_DIR / "evaluation_report.md"
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+PASS_F1     = 0.30
+PASS_COSINE = 0.60
+
+
+# ── Metric helpers ─────────────────────────────────────────────────────────────
+def _tokenise(text: str) -> set[str]:
+    """Lowercase alphanumeric word tokens."""
+    return set(re.findall(r"\b\w+\b", text.lower()))
+
+
+def keyword_metrics(generated: str, expected: str) -> dict[str, float]:
     """
-    Computes keyword Precision, Recall, and F1.
-
-    Args:
-        generated: The generated answer string.
-        expected: The expected answer string.
-
-    Returns:
-        A tuple of (Precision, Recall, F1).
+    Compute Precision, Recall, F1 from token-level overlap.
+    Both strings are treated as token bags — order does not matter.
     """
-    gen_tokens = tokenize(generated)
-    exp_tokens = tokenize(expected)
-
-    if not exp_tokens:
-        return 0.0, 0.0, 0.0
-    if not gen_tokens:
-        return 0.0, 0.0, 0.0
-
-    overlap = gen_tokens.intersection(exp_tokens)
-
-    precision = len(overlap) / len(gen_tokens)
-    recall = len(overlap) / len(exp_tokens)
-
-    if precision + recall == 0:
-        f1 = 0.0
-    else:
-        f1 = 2 * (precision * recall) / (precision + recall)
-
-    return float(precision), float(recall), float(f1)
-
-def compute_cosine_similarity(model: SentenceTransformer, text1: str, text2: str) -> float:
-    """
-    Computes the cosine similarity between two texts using the given model.
-    """
-    embeddings = model.encode([text1, text2], convert_to_numpy=True)
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    norm_embeddings = embeddings / np.where(norms == 0, 1e-10, norms)
-
-    sim = np.dot(norm_embeddings[0], norm_embeddings[1])
-    return float(sim)
-
-def evaluate_pipeline():
-    """Runs the RAG pipeline on dataset.json and evaluates the results."""
-    # Load data
-    try:
-        with open("dataset.json", "r") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        print("Error: dataset.json not found.")
-        return
-
-    document = data.get("document", "")
-    qa_pairs = data.get("qa_pairs", [])
-
-    # Initialize RAG Pipeline
-    pipeline = RAGPipeline()
-    pipeline.load_document(document)
-    pipeline.create_chunks(window_size=2, overlap=1)
-    pipeline.embed_chunks()
-
-    eval_results = []
-
-    # Thresholds for Pass/Fail
-    F1_THRESHOLD = 0.3
-    COSINE_THRESHOLD = 0.5
-
-    for qa in qa_pairs:
-        question = qa["question"]
-        expected = qa["expected_answer"]
-
-        # Run pipeline
-        retrieved_chunks = pipeline.retrieve(question, top_k=2)
-        generated = pipeline.generate_answer(question, retrieved_chunks)
-
-        # Compute metrics
-        precision, recall, f1 = compute_keyword_metrics(generated, expected)
-        cosine_sim = compute_cosine_similarity(pipeline.model, generated, expected)
-
-        passed = f1 >= F1_THRESHOLD and cosine_sim >= COSINE_THRESHOLD
-
-        eval_results.append({
-            "question": question,
-            "expected_answer": expected,
-            "generated_answer": generated,
-            "metrics": {
-                "keyword_precision": round(precision, 4),
-                "keyword_recall": round(recall, 4),
-                "keyword_f1": round(f1, 4),
-                "cosine_similarity": round(cosine_sim, 4)
-            },
-            "passed": passed
-        })
-
-    # Summary
-    total = len(eval_results)
-    passed_count = sum(1 for res in eval_results if res["passed"])
-
-    report_data = {
-        "summary": {
-            "total_questions": total,
-            "passed": passed_count,
-            "failed": total - passed_count,
-            "pass_rate": f"{(passed_count / total) * 100:.2f}%" if total > 0 else "0.00%"
-        },
-        "results": eval_results
+    g = _tokenise(generated)
+    e = _tokenise(expected)
+    overlap   = len(g & e)
+    precision = overlap / len(g) if g else 0.0
+    recall    = overlap / len(e) if e else 0.0
+    denom     = precision + recall
+    f1        = 2 * precision * recall / denom if denom else 0.0
+    return {
+        "precision": round(precision, 4),
+        "recall":    round(recall,    4),
+        "f1":        round(f1,        4),
     }
 
-    # Write output JSON
-    os.makedirs("output", exist_ok=True)
-    with open("output/evaluation_report.json", "w") as f:
-        json.dump(report_data, f, indent=4)
 
-    # Write output MD
-    md_content = "# Evaluation Report\n\n"
-    md_content += "## Summary\n"
-    md_content += f"- **Total Questions:** {total}\n"
-    md_content += f"- **Passed:** {passed_count}\n"
-    md_content += f"- **Failed:** {total - passed_count}\n"
-    md_content += f"- **Pass Rate:** {report_data['summary']['pass_rate']}\n\n"
+def semantic_similarity(rag, text_a: str, text_b: str) -> float:
+    """
+    Encode both strings with the RAG model and return cosine similarity.
+    Normalised embeddings make this a simple dot product.
+    """
+    embs  = rag.model.encode(
+        [text_a, text_b], convert_to_numpy=True, normalize_embeddings=True
+    )
+    score = cosine_similarity([embs[0]], [embs[1]])[0][0]
+    return round(float(score), 4)
 
-    md_content += "## Details\n"
-    for res in eval_results:
-        md_content += f"### Question: {res['question']}\n"
-        md_content += f"- **Expected Answer:** {res['expected_answer']}\n"
-        md_content += f"- **Generated Answer:** {res['generated_answer']}\n"
-        md_content += "- **Metrics:**\n"
-        md_content += f"  - Keyword Precision: {res['metrics']['keyword_precision']}\n"
-        md_content += f"  - Keyword Recall: {res['metrics']['keyword_recall']}\n"
-        md_content += f"  - Keyword F1: {res['metrics']['keyword_f1']}\n"
-        md_content += f"  - Cosine Similarity: {res['metrics']['cosine_similarity']}\n"
-        status = "✅ PASS" if res['passed'] else "❌ FAIL"
-        md_content += f"- **Status:** {status}\n\n"
 
-    with open("output/evaluation_report.md", "w") as f:
-        f.write(md_content)
+# ── Evaluation ─────────────────────────────────────────────────────────────
+def run_evaluation() -> dict[str, Any]:
+    """Run the full evaluation and return the report dict."""
+    qa_pairs = get_qa_pairs()
+    rag      = build_rag()
 
-    print("Evaluation completed. Reports saved in 'output/' directory.")
+    rows: list[dict[str, Any]] = []
+    for qa in qa_pairs:
+        result    = rag.query(qa["question"])
+        generated = result.answer
+        expected  = qa["expected"]
+
+        kw     = keyword_metrics(generated, expected)
+        cosine = semantic_similarity(rag, generated, expected)
+        p_kw   = kw["f1"]  >= PASS_F1
+        p_cos  = cosine     >= PASS_COSINE
+
+        rows.append({
+            "question":          qa["question"],
+            "expected_answer":   expected,
+            "generated_answer":  generated,
+            "keyword_metrics":   kw,
+            "cosine_similarity": cosine,
+            "pass_keyword_f1":   p_kw,
+            "pass_cosine":       p_cos,
+            "passed":            p_kw and p_cos,
+            "retrieved_chunks":  [asdict(c) for c in result.top_chunks],
+        })
+
+    n      = len(rows)
+    passed = sum(r["passed"] for r in rows)
+    summary: dict[str, Any] = {
+        "timestamp":             datetime.now(timezone.utc).isoformat(),
+        "model":                 rag.model_name,
+        "total_questions":       n,
+        "passed":                passed,
+        "failed":                n - passed,
+        "pass_rate_pct":         round(passed / n * 100, 1) if n else 0.0,
+        "avg_keyword_precision": round(float(np.mean([r["keyword_metrics"]["precision"] for r in rows])), 4),
+        "avg_keyword_recall":    round(float(np.mean([r["keyword_metrics"]["recall"]    for r in rows])), 4),
+        "avg_keyword_f1":        round(float(np.mean([r["keyword_metrics"]["f1"]        for r in rows])), 4),
+        "avg_cosine_similarity": round(float(np.mean([r["cosine_similarity"]            for r in rows])), 4),
+        "thresholds": {
+            "keyword_f1":        PASS_F1,
+            "cosine_similarity": PASS_COSINE,
+        },
+    }
+
+    report = {"summary": summary, "results": rows}
+    _save_json(report)
+    _save_markdown(report)
+    return report
+
+
+# ── Serialisers ─────────────────────────────────────────────────────────────
+def _save_json(report: dict[str, Any]) -> None:
+    REPORT_JSON.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+
+def _save_markdown(report: dict[str, Any]) -> None:
+    s = report["summary"]
+    lines = [
+        "# Evaluation Report — Beekeeping RAG Pipeline",
+        "",
+        f"> Generated : {s['timestamp']}",
+        f"> Model     : `{s['model']}`",
+        "",
+        "---",
+        "",
+        "## Summary",
+        "",
+        "| Metric | Value |",
+        "|--------|-------|",
+        f"| Total questions        | {s['total_questions']} |",
+        f"| Passed                 | {s['passed']} |",
+        f"| Failed                 | {s['failed']} |",
+        f"| Pass rate              | {s['pass_rate_pct']}% |",
+        f"| Avg keyword precision  | {s['avg_keyword_precision']} |",
+        f"| Avg keyword recall     | {s['avg_keyword_recall']} |",
+        f"| Avg keyword F1         | {s['avg_keyword_f1']} |",
+        f"| Avg cosine similarity  | {s['avg_cosine_similarity']} |",
+        f"| Threshold — keyword F1 | ≥ {s['thresholds']['keyword_f1']} |",
+        f"| Threshold — cosine sim | ≥ {s['thresholds']['cosine_similarity']} |",
+        "",
+        "---",
+        "",
+        "## Per-Question Results",
+        "",
+    ]
+
+    for idx, row in enumerate(report["results"], 1):
+        st = "\u2705 PASS" if row["passed"] else "\u274c FAIL"
+        kw = row["keyword_metrics"]
+        lines += [
+            f"### Q{idx} — {st}",
+            "",
+            f"**Question:** {row['question']}",
+            "",
+            "| | Answer |",
+            "|---|---|",
+            f"| Expected  | {row['expected_answer']} |",
+            f"| Generated | {row['generated_answer']} |",
+            "",
+            "| Metric | Value | Threshold | Pass? |",
+            "|--------|-------|-----------|-------|",
+            f"| Keyword Precision  | {kw['precision']} | —          | — |",
+            f"| Keyword Recall     | {kw['recall']}    | —          | — |",
+            f"| Keyword F1         | {kw['f1']}        | ≥ {PASS_F1}  | {'\u2705' if row['pass_keyword_f1'] else '\u274c'} |",
+            f"| Cosine Similarity  | {row['cosine_similarity']} | ≥ {PASS_COSINE} | {'\u2705' if row['pass_cosine'] else '\u274c'} |",
+            "",
+            "**Retrieved chunks:**",
+            "",
+        ]
+        for rank, chunk in enumerate(row["retrieved_chunks"], 1):
+            lines.append(
+                f"{rank}. `score={chunk['score']:.4f}` | "
+                f"`{chunk['chunk_id']}` — {chunk['text']}"
+            )
+        lines += ["", "---", ""]
+
+    REPORT_MD.write_text("\n".join(lines), encoding="utf-8")
+
+
+# ── Console printer ─────────────────────────────────────────────────────────────
+def _print_report(report: dict[str, Any]) -> None:
+    SEP  = "=" * 72
+    THIN = "\u2500" * 68
+    s    = report["summary"]
+
+    print(f"\n{SEP}")
+    print("  EVALUATION REPORT  —  ADVANCED BEEKEEPING TECHNIQUES RAG")
+    print(f"{SEP}")
+    print(f"  Model           : {s['model']}")
+    print(f"  Passed          : {s['passed']}/{s['total_questions']}  ({s['pass_rate_pct']}%)")
+    print(f"  Avg Keyword F1  : {s['avg_keyword_f1']}   (threshold ≥ {PASS_F1})")
+    print(f"  Avg Cosine Sim  : {s['avg_cosine_similarity']}   (threshold ≥ {PASS_COSINE})")
+    print(f"{SEP}")
+
+    for idx, row in enumerate(report["results"], 1):
+        kw  = row["keyword_metrics"]
+        st  = "\u2705 PASS" if row["passed"] else "\u274c FAIL"
+        print(f"\n  Q{idx}: {row['question']}")
+        print(f"  {THIN}")
+        print(f"  Expected   : {row['expected_answer']}")
+        print(f"  Generated  : {row['generated_answer']}")
+        print(f"  Keyword    : precision={kw['precision']}  "
+              f"recall={kw['recall']}  f1={kw['f1']}")
+        print(f"  Cosine Sim : {row['cosine_similarity']}")
+        print(f"  Result     : {st}")
+
+    print(f"\n{SEP}")
+    print(f"  Reports saved \u2192  {REPORT_JSON}")
+    print(f"               \u2192  {REPORT_MD}")
+    print(f"{SEP}\n")
+
 
 if __name__ == "__main__":
-    evaluate_pipeline()
+    report = run_evaluation()
+    _print_report(report)

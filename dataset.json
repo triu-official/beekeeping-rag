@@ -1,15 +1,27 @@
 {
-  "document": "Winterization of Langstroth Hives requires strict temperature management. The internal hive temperature must be maintained above 40 degrees Fahrenheit to prevent the colony from freezing. Beekeepers often use insulated wraps and moisture quilt boxes to control condensation. Entrance reducers are placed to prevent field mice from entering during the colder months.",
+  "domain": "Advanced Beekeeping Techniques",
+  "version": "1.0",
+  "documents": [
+    {
+      "id": "doc_001",
+      "title": "Winterization of Langstroth Hives",
+      "source": "Edxso Assignment Dataset",
+      "text": "Winterization of Langstroth Hives requires strict temperature management. The internal hive temperature must be maintained above 40 degrees Fahrenheit to prevent the colony from freezing. Beekeepers often use insulated wraps and moisture quilt boxes to control condensation. Entrance reducers are placed to prevent field mice from entering during the colder months."
+    }
+  ],
   "qa_pairs": [
     {
+      "id": "q1",
       "question": "What is the minimum internal temperature for a Langstroth Hive in winter?",
       "expected_answer": "Above 40 degrees Fahrenheit."
     },
     {
+      "id": "q2",
       "question": "Why are entrance reducers used?",
       "expected_answer": "To prevent field mice from entering."
     },
     {
+      "id": "q3",
       "question": "How do beekeepers control condensation?",
       "expected_answer": "By using insulated wraps and moisture quilt boxes."
     }
