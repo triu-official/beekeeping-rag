@@ -1,0 +1,46 @@
+{
+    "summary": {
+        "total_questions": 3,
+        "passed": 3,
+        "failed": 0,
+        "pass_rate": "100.00%"
+    },
+    "results": [
+        {
+            "question": "What is the minimum internal temperature for a Langstroth Hive in winter?",
+            "expected_answer": "Above 40 degrees Fahrenheit.",
+            "generated_answer": "The internal hive temperature must be maintained above 40 degrees Fahrenheit to prevent the colony from freezing.",
+            "metrics": {
+                "keyword_precision": 0.25,
+                "keyword_recall": 1.0,
+                "keyword_f1": 0.4,
+                "cosine_similarity": 0.529
+            },
+            "passed": true
+        },
+        {
+            "question": "Why are entrance reducers used?",
+            "expected_answer": "To prevent field mice from entering.",
+            "generated_answer": "Entrance reducers are placed to prevent field mice from entering during the colder months.",
+            "metrics": {
+                "keyword_precision": 0.4286,
+                "keyword_recall": 1.0,
+                "keyword_f1": 0.6,
+                "cosine_similarity": 0.7169
+            },
+            "passed": true
+        },
+        {
+            "question": "How do beekeepers control condensation?",
+            "expected_answer": "By using insulated wraps and moisture quilt boxes.",
+            "generated_answer": "Beekeepers often use insulated wraps and moisture quilt boxes to control condensation.",
+            "metrics": {
+                "keyword_precision": 0.5,
+                "keyword_recall": 0.75,
+                "keyword_f1": 0.6,
+                "cosine_similarity": 0.6219
+            },
+            "passed": true
+        }
+    ]
+}
