@@ -1,46 +1,68 @@
 {
-    "summary": {
-        "total_questions": 3,
-        "passed": 3,
-        "failed": 0,
-        "pass_rate": "100.00%"
+  "summary": {
+    "timestamp": "2026-06-26T08:16:00+00:00",
+    "model": "all-MiniLM-L6-v2",
+    "total_questions": 3,
+    "passed": 3,
+    "failed": 0,
+    "pass_rate_pct": 100.0,
+    "avg_keyword_precision": 0.3929,
+    "avg_keyword_recall": 0.9167,
+    "avg_keyword_f1": 0.5333,
+    "avg_cosine_similarity": 0.8838,
+    "thresholds": {
+      "keyword_f1": 0.3,
+      "cosine_similarity": 0.6
+    }
+  },
+  "results": [
+    {
+      "question": "What is the minimum internal temperature for a Langstroth Hive in winter?",
+      "expected_answer": "Above 40 degrees Fahrenheit.",
+      "generated_answer": "The internal hive temperature must be maintained above 40 degrees Fahrenheit to prevent the colony from freezing.",
+      "keyword_metrics": {"precision": 0.25, "recall": 1.0, "f1": 0.4},
+      "cosine_similarity": 0.8721,
+      "pass_keyword_f1": true,
+      "pass_cosine": true,
+      "passed": true,
+      "retrieved_chunks": [
+        {"chunk_id": "doc_001_c001", "doc_id": "doc_001", "score": 0.6142,
+         "text": "Winterization of Langstroth Hives requires strict temperature management. The internal hive temperature must be maintained above 40 degrees Fahrenheit to prevent the colony from freezing."},
+        {"chunk_id": "doc_001_c002", "doc_id": "doc_001", "score": 0.2894,
+         "text": "The internal hive temperature must be maintained above 40 degrees Fahrenheit to prevent the colony from freezing. Beekeepers often use insulated wraps and moisture quilt boxes to control condensation."}
+      ]
     },
-    "results": [
-        {
-            "question": "What is the minimum internal temperature for a Langstroth Hive in winter?",
-            "expected_answer": "Above 40 degrees Fahrenheit.",
-            "generated_answer": "The internal hive temperature must be maintained above 40 degrees Fahrenheit to prevent the colony from freezing.",
-            "metrics": {
-                "keyword_precision": 0.25,
-                "keyword_recall": 1.0,
-                "keyword_f1": 0.4,
-                "cosine_similarity": 0.529
-            },
-            "passed": true
-        },
-        {
-            "question": "Why are entrance reducers used?",
-            "expected_answer": "To prevent field mice from entering.",
-            "generated_answer": "Entrance reducers are placed to prevent field mice from entering during the colder months.",
-            "metrics": {
-                "keyword_precision": 0.4286,
-                "keyword_recall": 1.0,
-                "keyword_f1": 0.6,
-                "cosine_similarity": 0.7169
-            },
-            "passed": true
-        },
-        {
-            "question": "How do beekeepers control condensation?",
-            "expected_answer": "By using insulated wraps and moisture quilt boxes.",
-            "generated_answer": "Beekeepers often use insulated wraps and moisture quilt boxes to control condensation.",
-            "metrics": {
-                "keyword_precision": 0.5,
-                "keyword_recall": 0.75,
-                "keyword_f1": 0.6,
-                "cosine_similarity": 0.6219
-            },
-            "passed": true
-        }
-    ]
+    {
+      "question": "Why are entrance reducers used?",
+      "expected_answer": "To prevent field mice from entering.",
+      "generated_answer": "Entrance reducers are placed to prevent field mice from entering during the colder months.",
+      "keyword_metrics": {"precision": 0.4286, "recall": 1.0, "f1": 0.6},
+      "cosine_similarity": 0.895,
+      "pass_keyword_f1": true,
+      "pass_cosine": true,
+      "passed": true,
+      "retrieved_chunks": [
+        {"chunk_id": "doc_001_c003", "doc_id": "doc_001", "score": 0.5873,
+         "text": "Beekeepers often use insulated wraps and moisture quilt boxes to control condensation. Entrance reducers are placed to prevent field mice from entering during the colder months."},
+        {"chunk_id": "doc_001_c004", "doc_id": "doc_001", "score": 0.3011,
+         "text": "Entrance reducers are placed to prevent field mice from entering during the colder months."}
+      ]
+    },
+    {
+      "question": "How do beekeepers control condensation?",
+      "expected_answer": "By using insulated wraps and moisture quilt boxes.",
+      "generated_answer": "Beekeepers often use insulated wraps and moisture quilt boxes to control condensation.",
+      "keyword_metrics": {"precision": 0.5, "recall": 0.75, "f1": 0.6},
+      "cosine_similarity": 0.8843,
+      "pass_keyword_f1": true,
+      "pass_cosine": true,
+      "passed": true,
+      "retrieved_chunks": [
+        {"chunk_id": "doc_001_c003", "doc_id": "doc_001", "score": 0.6217,
+         "text": "Beekeepers often use insulated wraps and moisture quilt boxes to control condensation. Entrance reducers are placed to prevent field mice from entering during the colder months."},
+        {"chunk_id": "doc_001_c002", "doc_id": "doc_001", "score": 0.4498,
+         "text": "The internal hive temperature must be maintained above 40 degrees Fahrenheit to prevent the colony from freezing. Beekeepers often use insulated wraps and moisture quilt boxes to control condensation."}
+      ]
+    }
+  ]
 }
